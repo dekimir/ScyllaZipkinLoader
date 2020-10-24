@@ -41,10 +41,10 @@ fun main(args: Array<String>) {
         events.forEach { r ->
             val id = r.getUUID("event_id")
             if (id !in spans) {
-                spans.put(id, Span(
+                spans[id] = Span(
                     id.toString(), "", "", "",
                     0, 0, "",
-                    Endpoint("", 0), Endpoint("", 0), emptyList<Annotation>().toMutableList()))
+                    Endpoint("", 0), Endpoint("", 0), emptyList<Annotation>().toMutableList())
             }
         }
     }
