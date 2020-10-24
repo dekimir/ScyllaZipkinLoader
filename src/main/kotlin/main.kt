@@ -3,7 +3,6 @@ import com.datastax.driver.core.Row
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlin.math.min
 
 @Serializable
 data class Endpoint(
@@ -38,13 +37,14 @@ fun main(args: Array<String>) {
     val traceSessions = session.execute("SELECT * FROM system_traces.sessions")
     val eventQueryStmt = session.prepare("SELECT * FROM system_traces.events where session_id=?")
     traceSessions.forEach { s ->
-        val events = session.execute(eventQueryStmt.bind(s.getUUID("session_id")))
+        val sessionID = s.getUUID("session_id")
+        val events = session.execute(eventQueryStmt.bind(sessionID))
         events.forEach { r ->
             val id = getLongAsLowHex(r, "scylla_span_id")
             val parentId = getLongAsLowHex(r, "scylla_parent_id")
             if (id !in spans) {
                 spans[id] = Span(
-                    id, "", parentId, "",
+                    id, sessionID.toString().replace("-", "").takeLast(16), parentId, "",
                     0, 0, "",
                     Endpoint("", 0), Endpoint("", 0), emptyList<Annotation>().toMutableList())
             }
