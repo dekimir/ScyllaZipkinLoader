@@ -3,6 +3,7 @@ import com.datastax.driver.core.Row
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.math.min
 
 @Serializable
 data class Endpoint(
@@ -39,8 +40,8 @@ fun main(args: Array<String>) {
     traceSessions.forEach { s ->
         val events = session.execute(eventQueryStmt.bind(s.getUUID("session_id")))
         events.forEach { r ->
-            val id = r.getLong("scylla_span_id").toString().takeLast(16)
-            val parentId = r.getLong("scylla_parent_id").toString().takeLast(16)
+            val id = getLongAsLowHex(r, "scylla_span_id")
+            val parentId = getLongAsLowHex(r, "scylla_parent_id")
             if (id !in spans) {
                 spans[id] = Span(
                     id, "", parentId, "",
@@ -51,3 +52,5 @@ fun main(args: Array<String>) {
     }
     println(Json.encodeToString(spans.values.toList()))
 }
+
+private fun getLongAsLowHex(row: Row, column: String) = row.getLong(column).toString().takeLast(16)
