@@ -39,10 +39,11 @@ fun main(args: Array<String>) {
     traceSessions.forEach { s ->
         val events = session.execute(eventQueryStmt.bind(s.getUUID("session_id")))
         events.forEach { r ->
-            val id = getUUIDAsLowHex(r, "event_id")
+            val id = r.getLong("scylla_span_id").toString().takeLast(16)
+            val parentId = r.getLong("scylla_parent_id").toString().takeLast(16)
             if (id !in spans) {
                 spans[id] = Span(
-                    id, "", "", "",
+                    id, "", parentId, "",
                     0, 0, "",
                     Endpoint("", 0), Endpoint("", 0), emptyList<Annotation>().toMutableList())
             }
@@ -50,6 +51,3 @@ fun main(args: Array<String>) {
     }
     println(Json.encodeToString(spans.values.toList()))
 }
-
-private fun getUUIDAsLowHex(r: Row, column: String) =
-    r.getUUID(column).toString().replace("-", "").takeLast(16)
