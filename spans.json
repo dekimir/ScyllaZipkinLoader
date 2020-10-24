@@ -1,0 +1,28 @@
+[
+  {
+    "id": "f5d6b777-14ce-11eb-a791-000000000005",
+    "traceId": "5af7183fb1d4cf5f",
+    "parentId": "352bff9a74ca9ad2",
+    "name": "f5d6b777",
+    "timestamp": 1556604172355737,
+    "duration": 1431,
+    "kind": "SERVER",
+    "localEndpoint": {
+      "serviceName": "backend",
+      "ipv4": "192.168.99.1",
+      "port": 3306
+    },
+    "remoteEndpoint": {
+      "ipv4": "172.19.0.2",
+      "port": 58648
+    },
+    "tags": {
+      "http.method": "GET",
+      "http.path": "/api"
+    },
+    "annotations": [
+      {"timestamp": 123, "value": "abc"},
+      {"timestamp": 456, "value": "xyz"}
+    ]
+  }
+]
