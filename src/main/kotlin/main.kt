@@ -1,8 +1,8 @@
 import com.datastax.driver.core.Cluster
+import com.datastax.driver.core.Row
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.util.*
 
 @Serializable
 data class Endpoint(
@@ -31,7 +31,7 @@ data class Span(
 )
 
 fun main(args: Array<String>) {
-    var spans = mapOf<UUID, Span>().toMutableMap()
+    var spans = mapOf<String, Span>().toMutableMap()
     val cluster = Cluster.builder().addContactPoints("localhost").build()
     val session = cluster.connect("system_traces")
     val traceSessions = session.execute("SELECT * FROM system_traces.sessions")
@@ -39,10 +39,10 @@ fun main(args: Array<String>) {
     traceSessions.forEach { s ->
         val events = session.execute(eventQueryStmt.bind(s.getUUID("session_id")))
         events.forEach { r ->
-            val id = r.getUUID("event_id")
+            val id = getUUIDAsLowHex(r)
             if (id !in spans) {
                 spans[id] = Span(
-                    id.toString(), "", "", "",
+                    id, "", "", "",
                     0, 0, "",
                     Endpoint("", 0), Endpoint("", 0), emptyList<Annotation>().toMutableList())
             }
@@ -50,3 +50,6 @@ fun main(args: Array<String>) {
     }
     println(Json.encodeToString(spans.values.toList()))
 }
+
+private fun getUUIDAsLowHex(r: Row) =
+    r.getUUID("event_id").toString().replace("-", "").takeLast(16)
