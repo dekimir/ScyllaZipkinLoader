@@ -39,7 +39,7 @@ fun main(args: Array<String>) {
     traceSessions.forEach { s ->
         val events = session.execute(eventQueryStmt.bind(s.getUUID("session_id")))
         events.forEach { r ->
-            val id = getUUIDAsLowHex(r)
+            val id = getUUIDAsLowHex(r, "event_id")
             if (id !in spans) {
                 spans[id] = Span(
                     id, "", "", "",
@@ -51,5 +51,5 @@ fun main(args: Array<String>) {
     println(Json.encodeToString(spans.values.toList()))
 }
 
-private fun getUUIDAsLowHex(r: Row) =
-    r.getUUID("event_id").toString().replace("-", "").takeLast(16)
+private fun getUUIDAsLowHex(r: Row, column: String) =
+    r.getUUID(column).toString().replace("-", "").takeLast(16)
