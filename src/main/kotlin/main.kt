@@ -4,16 +4,18 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.math.min
+import kotlin.math.max
 
 @Serializable
 data class Endpoint(
+    val serviceName: String,
     val ipv4: String,
     val port: Int
 )
 
 @Serializable
 data class Annotation(
-    val timestamp: Int,
+    val timestamp: Long,
     val value: String
 )
 
@@ -23,8 +25,8 @@ data class Span(
     val traceId: String,
     val parentId: String,
     val name: String,
-    val timestamp: Int,
-    val duration: Int,
+    var timestamp: Long,
+    var duration: Long,
     val kind: String,
     val localEndpoint: Endpoint,
     val remoteEndpoint: Endpoint,
@@ -38,16 +40,28 @@ fun main(args: Array<String>) {
     val traceSessions = session.execute("SELECT * FROM system_traces.sessions")
     val eventQueryStmt = session.prepare("SELECT * FROM system_traces.events where session_id=?")
     traceSessions.forEach { s ->
-        val events = session.execute(eventQueryStmt.bind(s.getUUID("session_id")))
+        val sessionID = s.getUUID("session_id")
+        val events = session.execute(eventQueryStmt.bind(sessionID))
         events.forEach { r ->
             val id = getLongAsLowHex(r, "scylla_span_id")
             val parentId = getLongAsLowHex(r, "scylla_parent_id")
             if (id !in spans) {
+                val inet = r.getInet("source")
                 spans[id] = Span(
-                    id, "", parentId, "",
-                    0, 0, "",
-                    Endpoint("", 0), Endpoint("", 0), emptyList<Annotation>().toMutableList())
+                    id, sessionID.toString().replace("-","").take(32), parentId, "",
+                    Long.MAX_VALUE, 0, "SERVER",
+                    Endpoint("scylla", inet.hostAddress, 0),
+                    Endpoint("scylla", r.getString("thread"), 0),
+                    emptyList<Annotation>().toMutableList())
             }
+            val start = r.getUUID("event_id").timestamp()
+            spans[id]!!.timestamp = min(spans[id]!!.timestamp, start)
+            // The span duration is dictated by the last event in it.  But we don't know when an event ends -- that's
+            // not recorded in Scylla.  Absent that information, let's assume each event lasts 10ms and look for the
+            // latest one.
+            val possibleNewDuration = start + 10 - spans[id]!!.timestamp
+            spans[id]!!.duration = max(spans[id]!!.duration, possibleNewDuration)
+            spans[id]!!.annotations.add(Annotation(start, r.getString("activity")))
         }
     }
     println(Json.encodeToString(spans.values.toList()))
