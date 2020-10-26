@@ -56,7 +56,7 @@ fun main(args: Array<String>) {
                     Endpoint(inet.hostAddress, inet.hostAddress, 7000),
                     emptyList<Annotation>().toMutableList())
             }
-            val start = r.getUUID("event_id").timestamp() / 10
+            val start = r.getUUID("event_id").timestamp() / 10 // Zipkin uses micro-second timestamps.
             spans[id]!!.timestamp = min(spans[id]!!.timestamp, start)
             // The span duration is dictated by the last event in it.  But we don't know when an event ends -- that's
             // not recorded in Scylla.  Absent that information, let's assume each event lasts 1us and look for the
