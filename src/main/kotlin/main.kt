@@ -42,24 +42,26 @@ fun main(args: Array<String>) {
     traceSessions.forEach { s ->
         val sessionID = s.getUUID("session_id")
         val events = session.execute(eventQueryStmt.bind(sessionID))
+
         events.forEach { r ->
+            val shard_id = r.getString("thread")
             val id = getLongAsLowHex(r, "scylla_span_id")
             val parentId = getLongAsLowHex(r, "scylla_parent_id")
             if (id !in spans) {
                 val inet = r.getInet("source")
                 spans[id] = Span(
-                    id, sessionID.toString().replace("-","").take(32), parentId, "",
+                    id, sessionID.toString().replace("-","").take(32), parentId, shard_id,
                     Long.MAX_VALUE, 0, "SERVER",
-                    Endpoint("scylla", inet.hostAddress, 0),
-                    Endpoint("scylla", r.getString("thread"), 0),
+                    Endpoint(inet.hostAddress, inet.hostAddress, 7000),
+                    Endpoint(inet.hostAddress, inet.hostAddress, 7000),
                     emptyList<Annotation>().toMutableList())
             }
-            val start = r.getUUID("event_id").timestamp()
+            val start = r.getUUID("event_id").timestamp() / 10
             spans[id]!!.timestamp = min(spans[id]!!.timestamp, start)
             // The span duration is dictated by the last event in it.  But we don't know when an event ends -- that's
-            // not recorded in Scylla.  Absent that information, let's assume each event lasts 10ms and look for the
+            // not recorded in Scylla.  Absent that information, let's assume each event lasts 1us and look for the
             // latest one.
-            val possibleNewDuration = start + 10 - spans[id]!!.timestamp
+            val possibleNewDuration = start + 1 - spans[id]!!.timestamp
             spans[id]!!.duration = max(spans[id]!!.duration, possibleNewDuration)
             spans[id]!!.annotations.add(Annotation(start, r.getString("activity")))
         }
